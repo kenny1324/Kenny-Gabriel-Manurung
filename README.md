@@ -80,19 +80,21 @@ Bagian ini menjelaskan secara rinci seluruh tahapan matematis dan algoritma pemr
 - Kamera membaca aliran video secara berkala pada resolusi 640 x 480 piksel per frame.
 - Frame yang baru ditangkap memiliki susunan piksel bawaan OpenCV dalam format BGR (Blue, Green, Red).
 - Citra dibalik secara horizontal menggunakan fungsi refleksi sumbu Y:
-  $$I_{\text{flip}}(x, y) = I_{\text{raw}}(W - 1 - x, y)$$
-  di mana $W$ adalah lebar citra. Pembalikan ini penting agar interaksi terasa alami seperti menghadap cermin: ketika pemain menggerakkan tangan ke arah kanan fisiknya, objek di layar juga bergerak ke kanan.
+  ```text
+  I_flip(x, y) = I_raw(Lebar - 1 - x, y)
+  ```
+  Pembalikan ini penting agar interaksi terasa alami seperti menghadap cermin: ketika pemain menggerakkan tangan ke arah kanan fisiknya, objek di layar juga bergerak ke kanan.
 
 ---
 
 ### 2. Konversi Ruang Warna: Mengapa dari BGR/RGB ke HSV?
 Secara visual, citra digital standar tersusun atas tiga kanal warna dasar: Red, Green, dan Blue. Namun, ruang warna RGB/BGR memiliki kelemahan mendasar dalam analisis citra:
-- **Keterikatan Intensitas Cahaya**: Pada RGB, corak warna (*chrominance*) bercampur langsung dengan intensitas cahaya (*luminance*). Jika pencahayaan ruangan meredup atau timbul bayangan, ketiga nilai R, G, dan B akan berubah drastis, menyebabkan segmentasi warna kulit mudah gagal.
+- **Keterikatan Intensitas Cahaya**: Pada RGB, corak warna (*chrominance*) bercampur langsung dengan intensitas cahaya (*luminance*). Jika pencahayaan ruangan meredup atau timbul bayangan, ketiga nilai R, G, dan B akan berubah drastis, sehingga segmentasi warna kulit mudah gagal.
 - **Pemisahan Karakteristik pada HSV**:
   Ruang warna HSV memisahkan informasi visual menjadi tiga dimensi independen:
   1. **Hue (H)**: Corak atau panjang gelombang warna murni. Pada OpenCV 8-bit, nilainya dipetakan ke rentang 0 hingga 179 (mewakili sudut lingkaran warna 0 derajat sampai 360 derajat).
-  2. **Saturation (S)**: Kemurnian atau kejenuhan warna (0 sampai 255), dari warna abu-abu pudar hingga warna pekat murni.
-  3. **Value (V)**: Tingkat kecerahan atau intensitas cahaya (0 sampai 255), dari gelap pekat (hitam) hingga terang maksimal.
+  2. **Saturation (S)**: Kemurnian atau kejenuhan warna (rentang 0 sampai 255), dari warna abu-abu pudar hingga warna pekat murni.
+  3. **Value (V)**: Tingkat kecerahan atau intensitas cahaya (rentang 0 sampai 255), dari gelap pekat (hitam) hingga terang maksimal.
 
 Dengan memisahkan intensitas cahaya (V) dari corak warna (H), sistem dapat mendeteksi warna kulit secara konsisten meskipun intensitas cahaya di ruangan berfluktuasi atau terdapat bayangan ringan pada tangan.
 
@@ -105,19 +107,22 @@ Pada model lingkaran warna Hue (0–179 di OpenCV):
 - Warna merah murni berada pada sudut 0 derajat dan 180 derajat (titik pertemuan lingkaran).
 - Karena itu, rentang corak kulit manusia terbagi menjadi dua kelompok di sekitar nilai batas tersebut:
   - **Rentang Pertama (Nilai Hue Rendah)**:
-    $$\text{Lower}_1 = [0, 30, 60], \quad \text{Upper}_1 = [20, 255, 255]$$
+    - Batas Bawah: `[0, 30, 60]`
+    - Batas Atas: `[20, 255, 255]`
   - **Rentang Kedua (Nilai Hue Tinggi mendekati 180)**:
-    $$\text{Lower}_2 = [160, 30, 60], \quad \text{Upper}_2 = [180, 255, 255]$$
+    - Batas Bawah: `[160, 30, 60]`
+    - Batas Atas: `[180, 255, 255]`
 
 Setiap piksel diuji terhadap kedua rentang tersebut untuk menghasilkan mask biner:
-$$M_1(x, y) = \begin{cases} 255, & \text{jika } \text{Lower}_1 \le I_{\text{HSV}}(x, y) \le \text{Upper}_1 \\ 0, & \text{lainnya} \end{cases}$$
+- Piksel yang masuk dalam Rentang Pertama bernilai 255 (putih), selain itu 0 (hitam).
+- Piksel yang masuk dalam Rentang Kedua bernilai 255 (putih), selain itu 0 (hitam).
 
-$$M_2(x, y) = \begin{cases} 255, & \text{jika } \text{Lower}_2 \le I_{\text{HSV}}(x, y) \le \text{Upper}_2 \\ 0, & \text{lainnya} \end{cases}$$
+Kedua mask biner digabungkan menggunakan operasi logika bitwise OR:
+```text
+Mask_Gabungan = Mask_Rentang1 OR Mask_Rentang2
+```
 
-Kedua mask digabungkan menggunakan operasi logika bitwise OR:
-$$M_{\text{gabungan}}(x, y) = M_1(x, y) \lor M_2(x, y)$$
-
-Hasil akhir tahap ini adalah citra biner hitam-putih di mana piksel bernilai 255 (putih) mewakili area yang dicurigai sebagai kulit, dan 0 (hitam) mewakili latar belakang.
+Hasil akhir tahap ini adalah citra biner hitam-putih di mana piksel bernilai 255 (putih) mewakili area yang terdeteksi sebagai kulit, dan 0 (hitam) mewakili latar belakang.
 
 ---
 
@@ -127,21 +132,23 @@ Citra biner hasil thresholding masih mengandung ketidaksempurnaan berupa bintik-
 Operasi ini diimplementasikan murni menggunakan operasi array NumPy:
 
 #### A. Erosi (Erosion 3x3)
-Piksel keluaran bernilai foreground (255) jika dan hanya jika seluruh 9 piksel tetangga dalam jendela kernel 3 x 3 bernilai foreground (> 0):
-$$\text{Erode}(M)(x, y) = \begin{cases} 255, & \text{jika } \forall (i, j) \in \{-1, 0, 1\}^2, M(x+i, y+j) > 0 \\ 0, & \text{lainnya} \end{cases}$$
+Piksel keluaran bernilai foreground (255) jika dan hanya jika **seluruh 9 piksel tetangga** dalam jendela kernel 3 x 3 bernilai foreground (> 0). Jika ada minimal satu tetangga bernilai 0, maka piksel keluaran menjadi 0.
 - **Fungsi**: Mengikis tepi luar objek, memotong jembatan piksel tipis, dan melenyapkan bintik-bintik putih terisolasi yang berasal dari pantulan cahaya kecil di latar belakang.
 
 #### B. Dilasi (Dilation 3x3)
-Piksel keluaran bernilai foreground (255) jika minimal satu piksel tetangga dalam jendela kernel 3 x 3 bernilai foreground (> 0):
-$$\text{Dilate}(M)(x, y) = \begin{cases} 255, & \text{jika } \exists (i, j) \in \{-1, 0, 1\}^2, M(x+i, y+j) > 0 \\ 0, & \text{lainnya} \end{cases}$$
+Piksel keluaran bernilai foreground (255) jika **minimal satu piksel tetangga** dalam jendela kernel 3 x 3 bernilai foreground (> 0).
 - **Fungsi**: Memperluas batas luar objek putih, menyambungkan kembali bagian tangan yang terputus sebagian, dan menutup lubang-lubang kecil.
 
 #### C. Operasi Opening dan Closing
 - **Opening** (Erosi diikuti Dilasi):
-  $$\text{Opening}(M) = \text{Dilate}(\text{Erode}(M))$$
+  ```text
+  Opening(Mask) = Dilasi(Erosi(Mask))
+  ```
   Berfungsi menghilangkan derau tonjolan tipis dan bintik kecil di latar belakang tanpa mengubah ukuran keseluruhan tangan.
 - **Closing** (Dilasi diikuti Erosi):
-  $$\text{Closing}(M) = \text{Erode}(\text{Dilate}(M))$$
+  ```text
+  Closing(Mask) = Erosi(Dilasi(Mask))
+  ```
   Berfungsi menutup rongga lubang di bagian tengah telapak tangan sehingga bentuk tangan menjadi padat (*solid*).
 
 ---
@@ -149,63 +156,74 @@ $$\text{Dilate}(M)(x, y) = \begin{cases} 255, & \text{jika } \exists (i, j) \in 
 ### 5. Analisis Komponen Terhubung Menggunakan Algoritma DFS 4-Arah
 Setelah citra biner dibersihkan, langkah berikutnya adalah memisahkan pulau-pulau piksel putih yang berdiri sendiri dan mencari komponen yang merupakan tangan pemain.
 
-1. **Downscaling Citra**: Untuk menjamin pemrosesan berjalan realtime 60 FPS di laptop tanpa lag, citra biner diperkecil ke ukuran $160 \times 120$ piksel.
-2. **Matriks Kunjungan (Visited)**: Dibuat matriks boolean berukuran $160 \times 120$ bernilai `False`.
+1. **Downscaling Citra**: Untuk menjamin pemrosesan berjalan realtime 60 FPS di laptop tanpa lag, citra biner diperkecil ke ukuran 160 x 120 piksel.
+2. **Matriks Kunjungan (Visited)**: Dibuat matriks boolean berukuran 160 x 120 bernilai `False`.
 3. **Penelusuran Depth-First Search (DFS)**:
    - Program memindai citra dari pojok kiri atas.
    - Ketika ditemukan piksel foreground (bernilai 255) yang belum pernah dikunjungi, piksel tersebut dijadikan titik awal penelusuran DFS.
    - Menggunakan struktur data *stack* eksplisit (bukan rekursi fungsi agar tidak melampaui batas *call stack* Python), program menelusuri seluruh tetangga yang saling terhubung.
 4. **Konektivitas 4-Arah (4-Neighborhood)**:
-   Tetangga yang diperiksa adalah 4 arah ortogonal:
-   $$\Delta = \{(-1, 0), (1, 0), (0, -1), (0, 1)\} \quad (\text{Atas, Bawah, Kiri, Kanan})$$
+   Tetangga yang diperiksa adalah 4 arah ortogonal: Atas, Bawah, Kiri, dan Kanan:
+   ```text
+   Arah = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+   ```
 5. **Akumulasi Luas dan Koordinat Komponen**:
    Selama proses penelusuran satu komponen, program menghitung:
-   - Jumlah total piksel penyusun komponen ($A$).
-   - Jumlah koordinat horizontal ($\sum x$) dan vertikal ($\sum y$).
+   - Jumlah total piksel penyusun komponen (`Area`).
+   - Jumlah koordinat horizontal (`Sum_X`) dan vertikal (`Sum_Y`).
 6. **Penapisan Area (Area Filtering)**:
    Komponen disaring menggunakan ambang batas:
-   $$\text{MIN\_AREA} \le A \le \text{MAX\_AREA}$$
-   - Nilai $\text{MIN\_AREA} = 35$: Menyingkirkan derau bintik kecil yang tersisa.
-   - Nilai $\text{MAX\_AREA} = 8000$: Menyingkirkan area latar belakang berukuran raksasa (misalnya jika seluruh dinding berwarna krem).
-   - Komponen valid dengan luas $A$ terbesar dipilih sebagai objek tangan pemain.
+   ```text
+   MIN_AREA <= Area <= MAX_AREA
+   ```
+   - Nilai `MIN_AREA = 35`: Menyingkirkan derau bintik kecil yang tersisa.
+   - Nilai `MAX_AREA = 8000`: Menyingkirkan area latar belakang berukuran besar (misalnya jika seluruh dinding berwarna krem).
+   - Komponen valid dengan nilai `Area` terbesar dipilih sebagai objek tangan pemain.
 
 ---
 
 ### 6. Perhitungan Titik Pusat Massa (Centroid)
-Setelah komponen tangan terbesar ditemukan, titik pusat massa matematis (*centroid*) dihitung menggunakan rumus momen spasial tingkat pertama:
+Setelah komponen tangan terbesar ditemukan, titik pusat massa matematis (*centroid*) dihitung menggunakan rumus momen spasial:
 
-$$\bar{x} = \frac{1}{A} \sum_{i=1}^{A} x_i, \qquad \bar{y} = \frac{1}{A} \sum_{i=1}^{A} y_i$$
+```text
+Centroid_X = Sum_X / Area
+Centroid_Y = Sum_Y / Area
+```
 
-di mana:
-- $A$ adalah luas komponen (jumlah total piksel tangan terpilih).
-- $x_i$ dan $y_i$ adalah koordinat sumbu X dan Y dari masing-masing piksel penyusun tangan tersebut.
+Keterangan:
+- `Area` adalah jumlah total piksel tangan terpilih.
+- `Sum_X` adalah penjumlahan koordinat X dari seluruh piksel penyusun tangan tersebut.
+- `Sum_Y` adalah penjumlahan koordinat Y dari seluruh piksel penyusun tangan tersebut.
 
-Hasil pasangan $(\bar{x}, \bar{y})$ ini merupakan titik tengah geometris dari telapak tangan pemain pada ruang resolusi citra pemrosesan.
+Hasil pasangan `(Centroid_X, Centroid_Y)` ini merupakan titik tengah geometris dari telapak tangan pemain pada ruang resolusi citra pemrosesan.
 
 ---
 
 ### 7. Pemetaan Skala Koordinat dan Peredaman Gerakan (Smoothing)
 
 #### A. Pemetaan Koordinat ke Layar Game
-Titik pusat $(\bar{x}, \bar{y})$ yang diperoleh masih berada pada skala resolusi pemrosesan ($160 \times 120$). Titik ini dipetakan ke resolusi layar permainan ($800 \times 600$):
+Titik pusat yang diperoleh masih berada pada skala resolusi pemrosesan (160 x 120). Titik ini dipetakan secara proporsional ke resolusi layar permainan (800 x 600):
 
-$$X_{\text{layar}} = \frac{\bar{x}}{W_{\text{proses}}} \times W_{\text{layar}} = \frac{\bar{x}}{160} \times 800$$
-
-$$Y_{\text{layar}} = \frac{\bar{y}}{H_{\text{proses}}} \times H_{\text{layar}} = \frac{\bar{y}}{120} \times 600$$
+```text
+X_layar = (Centroid_X / 160) * 800
+Y_layar = (Centroid_Y / 120) * 600
+```
 
 Koordinat dibatasi (*clamping*) agar posisi pedang selalu berada di dalam batas tampilan layar.
 
 #### B. Peredaman Getaran (Exponential Moving Average / EMA)
 Gerakan tangan manusia dan fluktuasi pencahayaan antarfram dapat menimbulkan getaran kecil (*jitter*). Untuk menghasilkan gerakan pedang yang halus, diterapkan interpolasi eksponensial:
 
-$$P_{\text{tampil}} = \alpha \cdot P_{\text{baru}} + (1 - \alpha) \cdot P_{\text{sebelumnya}}$$
+```text
+Posisi_Baru = (alpha * Posisi_Target) + ((1 - alpha) * Posisi_Sebelumnya)
+```
 
-di mana koefisien $\alpha = 0.35$. Nilai ini memberikan keseimbangan optimal antara respon gerakan yang cepat dan stabilitas pedang yang tenang.
+dengan koefisien `alpha = 0.35`. Nilai ini memberikan keseimbangan optimal antara respon gerakan yang cepat dan stabilitas pedang yang tenang.
 
 #### C. Penanganan Kehilangan Tangan (Timeout)
 Jika pemain menarik tangannya keluar dari jangkauan kamera:
 - Sistem tidak memindahkan pedang secara acak ke pojok layar, melainkan menahan posisi valid terakhir.
-- Timer kehilangan tangan dihitung. Jika tangan tidak terdeteksi lebih dari 0,6 detik, bilah pedang dinonaktifkan (ditampilkan pudar) dan tabrakan dinonaktifkan agar tidak terjadi penangkisan pasif secara tidak disengaja.
+- Timer kehilangan tangan dihitung. Jika tangan tidak terdeteksi lebih dari 0,6 detik, bilah pedang dinonaktifkan (ditampilkan pudar) dan tabrakan dinonaktifkan agar tidak terjadi penangkisan pasif secara tidak sengaja.
 
 ---
 
