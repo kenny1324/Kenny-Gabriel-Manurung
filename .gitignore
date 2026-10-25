@@ -1,3 +1,6 @@
+# Ignore text files as requested
+*.txt
+
 # Python cache
 __pycache__/
 *.py[cod]
