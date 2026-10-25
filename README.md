@@ -1,116 +1,279 @@
-# ⚔️ Sword Defender — Game Pertahanan Pedang Interaktif (PCV)
+# Sword Defender — Game Pertahanan Pedang Interaktif (PCV)
 
-Game pertahanan interaktif berbasis **Pengolahan Citra dan Video (PCV)** yang dimainkan secara langsung menggunakan gerakan tangan di depan webcam.
+Game pertahanan interaktif berbasis Pengolahan Citra dan Video (PCV) yang dimainkan secara langsung menggunakan gerakan tangan di depan webcam.
 
-Pemain memegang kendali atas sebilah pedang pertahanan di layar. Dengan menggerakkan tangan secara bebas, pemain harus menangkis rentetan meteor dan bola api yang berjatuhan dari langit sebelum menyentuh dasar benteng pertahanan.
+Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan secara bebas di udara, pemain menangkis meteor dan bola api yang berjatuhan dari atas layar sebelum menyentuh dasar benteng pertahanan.
 
 ---
 
-## 📸 Demo & Dokumentasi Visual
+## Dokumentasi Visual
 
-### 🎮 Screenshot Gameplay
-<!-- SLOT GAMBAR SCREENSHOT: Ganti path atau tautan gambar di bawah ini dengan file screenshot running game Anda -->
+### Screenshot Gameplay
+<!-- SLOT GAMBAR SCREENSHOT: Letakkan file tangkapan layar game pada folder docs/screenshot.png -->
 ![Screenshot Gameplay Sword Defender](docs/screenshot.png)
-> *Slot Screenshot: Letakkan file tangkapan layar game pada folder `docs/screenshot.png` atau ganti URL di atas.*
+
+> *Catatan: Letakkan file tangkapan layar game pada folder `docs/screenshot.png` atau unggah langsung gambar tangkapan layar ke repository ini.*
 
 ---
 
-### 🎥 Video Dokumentasi Gameplay
-<!-- SLOT VIDEO DOKUMENTASI: Anda bisa menggunakan tag video lokal atau tautan YouTube di bawah -->
-<div align="center">
+### Video Dokumentasi Gameplay
+<!-- SLOT VIDEO DOKUMENTASI: Letakkan file rekaman gameplay pada folder docs/gameplay.mp4 -->
+<video src="docs/gameplay.mp4" controls="controls" width="100%"></video>
 
-[![Video Dokumentasi Sword Defender](https://img.shields.io/badge/▶_Tonton_Video_Dokumentasi-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com)
+[Tonton atau Unduh File Video Gameplay](docs/gameplay.mp4)
 
-*(Klik tombol di atas untuk menonton video dokumentasi permainan, atau sematkan file video langsung di folder `docs/gameplay.mp4`)*
-
-</div>
+> *Catatan: Letakkan file rekaman video permainan pada folder `docs/gameplay.mp4` atau unggah langsung file video MP4 ke repository ini.*
 
 ---
 
-## 🕹️ Bagaimana Game Ini Bekerja?
+## Tahapan Lengkap Pengolahan Citra dan Video (PCV)
 
-Game ini memadukan interaksi kamera dengan permainan arkade klasik melalui alur pemrosesan visual berikut:
+Bagian ini menjelaskan secara rinci seluruh tahapan matematis dan algoritma pemrosesan citra digital yang digunakan, mulai dari penerimaan sinyal visual mentah dari webcam hingga menghasilkan koordinat titik pusat tangan (centroid) untuk menggerakkan pedang.
 
 ```
-[ Kamera Webcam ] ──> [ Deteksi Warna Kulit ] ──> [ Titik Tengah Tangan ] ──> [ Posisi Pedang di Layar ]
-                                                                                      │
-                                                                                      ▼
-[ Skor & HP Pemain ] <── [ Sistem Tabrakan / Tangkisan ] <── [ Meteor & Api Berjatuhan ]
++-----------------------------------------------------------------------+
+| 1. Akuisisi Frame Kamera (Format BGR)                                |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 2. Pembalikan Horizontal Citra (Horizontal Mirroring)                 |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 3. Konversi Ruang Warna dari BGR ke HSV                               |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 4. Segmentasi Warna Kulit (Dual-Range HSV Thresholding)               |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 5. Operasi Morfologi Manual NumPy (Opening & Closing 3x3)             |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 6. Analisis Komponen Terhubung DFS 4-Arah (Connected Components)      |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 7. Perhitungan Centroid (Pusat Massa) & Penapisan Area                |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
++-----------------------------------------------------------------------+
+| 8. Pemetaan Skala Koordinat & Peredaman Getaran (Smoothing EMA)       |
++-----------------------------------------------------------------------+
+                                  |
+                                  v
+                        [ Koordinat Pedang ]
 ```
 
-### 1. Bagaimana Kamera Menggerakkan Pedang?
-1. **Melihat Melalui Kamera**: Saat aplikasi dibuka, kamera webcam menangkap gerakan Anda secara realtime dan langsung membalik tampilannya (*mirror*), sehingga ketika Anda menggerakkan tangan ke kanan, pedang di layar juga bergerak ke kanan selayaknya bercermin.
-2. **Mengenali Warna Tangan**: Sistem membedakan area kulit tangan pemain dari latar belakang ruangan dengan memindai corak warna (*Hue*) kulit manusia.
-3. **Penyaringan Bentuk**: Titik-titik cahaya yang mengganggu dibersihkan dan rongga di telapak tangan dipadatkan, menghasilkan siluet tangan yang jelas dan utuh.
-4. **Menentukan Posisi Pedang**: Sistem melacak titik pusat (*centroid*) dari area tangan terbesar yang terdeteksi, kemudian menerjemahkan posisi tersebut menjadi koordinat gerakan pedang di layar secara halus (*smooth*).
+---
 
-### 2. Bagaimana Objek Muncul di Layar?
-- **Objek Jatuh**: Meteor batu dan bola api muncul dari koordinat horizontal acak di bagian atas layar dan bergerak meluncur ke bawah menuju garis benteng pertahanan pemain.
-- **Kemunculan Teratur**: Interval kemunculan objek diatur berdasarkan waktu nyata, memastikan ritme kemunculan stabil dan menantang sesuai tingkat kesulitan yang dipilih.
+### 1. Akuisisi Frame Kamera dan Pembalikan Horizontal (Mirroring)
+- Kamera membaca aliran video secara berkala pada resolusi 640 x 480 piksel per frame.
+- Frame yang baru ditangkap memiliki susunan piksel bawaan OpenCV dalam format BGR (Blue, Green, Red).
+- Citra dibalik secara horizontal menggunakan fungsi refleksi sumbu Y:
+  $$I_{\text{flip}}(x, y) = I_{\text{raw}}(W - 1 - x, y)$$
+  di mana $W$ adalah lebar citra. Pembalikan ini penting agar interaksi terasa alami seperti menghadap cermin: ketika pemain menggerakkan tangan ke arah kanan fisiknya, objek di layar juga bergerak ke kanan.
 
 ---
 
-## 🎯 Aturan Permainan & Mekanisme Skor
+### 2. Konversi Ruang Warna: Mengapa dari BGR/RGB ke HSV?
+Secara visual, citra digital standar tersusun atas tiga kanal warna dasar: Red, Green, dan Blue. Namun, ruang warna RGB/BGR memiliki kelemahan mendasar dalam analisis citra:
+- **Keterikatan Intensitas Cahaya**: Pada RGB, corak warna (*chrominance*) bercampur langsung dengan intensitas cahaya (*luminance*). Jika pencahayaan ruangan meredup atau timbul bayangan, ketiga nilai R, G, dan B akan berubah drastis, menyebabkan segmentasi warna kulit mudah gagal.
+- **Pemisahan Karakteristik pada HSV**:
+  Ruang warna HSV memisahkan informasi visual menjadi tiga dimensi independen:
+  1. **Hue (H)**: Corak atau panjang gelombang warna murni. Pada OpenCV 8-bit, nilainya dipetakan ke rentang 0 hingga 179 (mewakili sudut lingkaran warna 0 derajat sampai 360 derajat).
+  2. **Saturation (S)**: Kemurnian atau kejenuhan warna (0 sampai 255), dari warna abu-abu pudar hingga warna pekat murni.
+  3. **Value (V)**: Tingkat kecerahan atau intensitas cahaya (0 sampai 255), dari gelap pekat (hitam) hingga terang maksimal.
 
-Tujuan utama pemain adalah mempertahankan benteng dari kehancuran selama mungkin dan meraih skor tertinggi.
-
-### 🛡️ Sistem HP (Health Points)
-- Pemain memiliki **6 HP** di awal permainan.
-- HP ditampilkan dalam bentuk bilah indikator hijau/merah di bagian atas layar (HUD).
-- Jika HP habis mencapai **0**, benteng runtuh dan permainan dinyatakan **GAME OVER**.
-
-### ⚔️ Mekanisme Tangkisan & Poin
-Pemain cukup mengarahkan bilah pedang agar bertabrakan dengan objek yang sedang jatuh:
-
-| Objek | Tampilan | Efek Saat Ditangkis Pedang | Efek Jika Lolos ke Dasar |
-| :---: | :---: | :---: | :---: |
-| **Meteor** | Batu Angkasa Berkawah | **Skor +1** (Hancur, HP Aman) | **HP -1** (Benteng Rusak) |
-| **Api** | Bola Api Membara | **Skor +2** (Hancur, HP Aman) | **HP -2** (Kerusakan Parah) |
-
-> **Catatan Tabrakan**: 
-> - Setiap objek hanya memicu satu kali aksi (tidak ada kerusakan ganda).
-> - Jika tangan pemain keluar dari pandangan kamera, pedang akan menjadi transparan/non-aktif sementara waktu untuk mencegah penangkisan pasif secara tidak sengaja.
+Dengan memisahkan intensitas cahaya (V) dari corak warna (H), sistem dapat mendeteksi warna kulit secara konsisten meskipun intensitas cahaya di ruangan berfluktuasi atau terdapat bayangan ringan pada tangan.
 
 ---
 
-## 🎚️ Tingkat Kesulitan (Difficulty Modes)
+### 3. Segmentasi Warna Kulit (Dual-Range Thresholding)
+Pigmen hemoglobin darah dan melanin pada kulit manusia memiliki corak warna alami yang berada di sekitar spektrum merah.
 
-Tingkat kesulitan dapat dipilih secara langsung melalui Menu Utama sebelum memulai permainan:
+Pada model lingkaran warna Hue (0–179 di OpenCV):
+- Warna merah murni berada pada sudut 0 derajat dan 180 derajat (titik pertemuan lingkaran).
+- Karena itu, rentang corak kulit manusia terbagi menjadi dua kelompok di sekitar nilai batas tersebut:
+  - **Rentang Pertama (Nilai Hue Rendah)**:
+    $$\text{Lower}_1 = [0, 30, 60], \quad \text{Upper}_1 = [20, 255, 255]$$
+  - **Rentang Kedua (Nilai Hue Tinggi mendekati 180)**:
+    $$\text{Lower}_2 = [160, 30, 60], \quad \text{Upper}_2 = [180, 255, 255]$$
 
-- **EASY (Santai)**: Interval kemunculan objek lebih renggang (~1,5 detik) dengan laju jatuh perlahan. Sangat cocok untuk membiasakan diri dengan kontrol kamera.
-- **MEDIUM (Standar)**: Interval objek lebih cepat (~1,0 detik) dengan pergerakan objek sedang dan kemunculan api yang lebih sering.
-- **HARD (Menantang)**: Interval sangat rapat (~0,6 detik) dengan kecepatan jatuh tinggi. Menuntut kecepatan refleks dan koordinasi tangan yang gesit.
+Setiap piksel diuji terhadap kedua rentang tersebut untuk menghasilkan mask biner:
+$$M_1(x, y) = \begin{cases} 255, & \text{jika } \text{Lower}_1 \le I_{\text{HSV}}(x, y) \le \text{Upper}_1 \\ 0, & \text{lainnya} \end{cases}$$
 
----
+$$M_2(x, y) = \begin{cases} 255, & \text{jika } \text{Lower}_2 \le I_{\text{HSV}}(x, y) \le \text{Upper}_2 \\ 0, & \text{lainnya} \end{cases}$$
 
-## 🧭 Menu & Navigasi Permainan
+Kedua mask digabungkan menggunakan operasi logika bitwise OR:
+$$M_{\text{gabungan}}(x, y) = M_1(x, y) \lor M_2(x, y)$$
 
-1. **PLAY**: Memulai sesi permainan baru menggunakan tingkat kesulitan yang sedang aktif. Skor dan HP akan di-reset kembali ke awal.
-2. **DEMONSTRATION (PCV)**: Membuka layar pengujian kamera realtime untuk melihat bagaimana sistem membaca tangan Anda melalui 5 tahapan pemrosesan visual (Kamera Asli, Masking Warna Kulit, Pembersihan Noise, Pemadatan Objek, dan Titik Pusat Tangan).
-3. **MODE (EASY / MEDIUM / HARD)**: Tombol pemilih mode kesulitan dengan penanda visual aktif.
-4. **EXIT**: Menutup aplikasi dan melepaskan webcam secara aman.
-5. **GAME OVER SCREEN**:
-   - Menampilkan total skor akhir yang berhasil dikumpulkan.
-   - **PLAY AGAIN**: Mengulang permainan seketika dengan mode yang sama.
-   - **MAIN MENU**: Kembali ke menu utama untuk mengganti tingkat kesulitan.
-
----
-
-## 🎮 Kontrol Permainan
-
-- **Gerakan Tangan (Webcam)**: Kendalikan posisi pedang ke kiri, kanan, atas, dan bawah untuk menangkis objek.
-- **Klik Mouse**: Memilih menu, mengganti mode kesulitan, dan menekan tombol pada antarmuka layar.
-- **Tombol Keyboard `ESC`**: Kembali ke Menu Utama dari mode permainan atau halaman demonstrasi.
+Hasil akhir tahap ini adalah citra biner hitam-putih di mana piksel bernilai 255 (putih) mewakili area yang dicurigai sebagai kulit, dan 0 (hitam) mewakili latar belakang.
 
 ---
 
-## 📁 Struktur Direktori Project
+### 4. Operasi Morfologi Biner Manual Menggunakan NumPy
+Citra biner hasil thresholding masih mengandung ketidaksempurnaan berupa bintik-bintik derau (*noise*) di latar belakang dan rongga lubang di dalam telapak tangan. Untuk memperbaikinya, diterapkan operasi morfologi matematika menggunakan struktur kernel persegi 3 x 3 dengan penambahan batas nol (*zero-padding*).
+
+Operasi ini diimplementasikan murni menggunakan operasi array NumPy:
+
+#### A. Erosi (Erosion 3x3)
+Piksel keluaran bernilai foreground (255) jika dan hanya jika seluruh 9 piksel tetangga dalam jendela kernel 3 x 3 bernilai foreground (> 0):
+$$\text{Erode}(M)(x, y) = \begin{cases} 255, & \text{jika } \forall (i, j) \in \{-1, 0, 1\}^2, M(x+i, y+j) > 0 \\ 0, & \text{lainnya} \end{cases}$$
+- **Fungsi**: Mengikis tepi luar objek, memotong jembatan piksel tipis, dan melenyapkan bintik-bintik putih terisolasi yang berasal dari pantulan cahaya kecil di latar belakang.
+
+#### B. Dilasi (Dilation 3x3)
+Piksel keluaran bernilai foreground (255) jika minimal satu piksel tetangga dalam jendela kernel 3 x 3 bernilai foreground (> 0):
+$$\text{Dilate}(M)(x, y) = \begin{cases} 255, & \text{jika } \exists (i, j) \in \{-1, 0, 1\}^2, M(x+i, y+j) > 0 \\ 0, & \text{lainnya} \end{cases}$$
+- **Fungsi**: Memperluas batas luar objek putih, menyambungkan kembali bagian tangan yang terputus sebagian, dan menutup lubang-lubang kecil.
+
+#### C. Operasi Opening dan Closing
+- **Opening** (Erosi diikuti Dilasi):
+  $$\text{Opening}(M) = \text{Dilate}(\text{Erode}(M))$$
+  Berfungsi menghilangkan derau tonjolan tipis dan bintik kecil di latar belakang tanpa mengubah ukuran keseluruhan tangan.
+- **Closing** (Dilasi diikuti Erosi):
+  $$\text{Closing}(M) = \text{Erode}(\text{Dilate}(M))$$
+  Berfungsi menutup rongga lubang di bagian tengah telapak tangan sehingga bentuk tangan menjadi padat (*solid*).
+
+---
+
+### 5. Analisis Komponen Terhubung Menggunakan Algoritma DFS 4-Arah
+Setelah citra biner dibersihkan, langkah berikutnya adalah memisahkan pulau-pulau piksel putih yang berdiri sendiri dan mencari komponen yang merupakan tangan pemain.
+
+1. **Downscaling Citra**: Untuk menjamin pemrosesan berjalan realtime 60 FPS di laptop tanpa lag, citra biner diperkecil ke ukuran $160 \times 120$ piksel.
+2. **Matriks Kunjungan (Visited)**: Dibuat matriks boolean berukuran $160 \times 120$ bernilai `False`.
+3. **Penelusuran Depth-First Search (DFS)**:
+   - Program memindai citra dari pojok kiri atas.
+   - Ketika ditemukan piksel foreground (bernilai 255) yang belum pernah dikunjungi, piksel tersebut dijadikan titik awal penelusuran DFS.
+   - Menggunakan struktur data *stack* eksplisit (bukan rekursi fungsi agar tidak melampaui batas *call stack* Python), program menelusuri seluruh tetangga yang saling terhubung.
+4. **Konektivitas 4-Arah (4-Neighborhood)**:
+   Tetangga yang diperiksa adalah 4 arah ortogonal:
+   $$\Delta = \{(-1, 0), (1, 0), (0, -1), (0, 1)\} \quad (\text{Atas, Bawah, Kiri, Kanan})$$
+5. **Akumulasi Luas dan Koordinat Komponen**:
+   Selama proses penelusuran satu komponen, program menghitung:
+   - Jumlah total piksel penyusun komponen ($A$).
+   - Jumlah koordinat horizontal ($\sum x$) dan vertikal ($\sum y$).
+6. **Penapisan Area (Area Filtering)**:
+   Komponen disaring menggunakan ambang batas:
+   $$\text{MIN\_AREA} \le A \le \text{MAX\_AREA}$$
+   - Nilai $\text{MIN\_AREA} = 35$: Menyingkirkan derau bintik kecil yang tersisa.
+   - Nilai $\text{MAX\_AREA} = 8000$: Menyingkirkan area latar belakang berukuran raksasa (misalnya jika seluruh dinding berwarna krem).
+   - Komponen valid dengan luas $A$ terbesar dipilih sebagai objek tangan pemain.
+
+---
+
+### 6. Perhitungan Titik Pusat Massa (Centroid)
+Setelah komponen tangan terbesar ditemukan, titik pusat massa matematis (*centroid*) dihitung menggunakan rumus momen spasial tingkat pertama:
+
+$$\bar{x} = \frac{1}{A} \sum_{i=1}^{A} x_i, \qquad \bar{y} = \frac{1}{A} \sum_{i=1}^{A} y_i$$
+
+di mana:
+- $A$ adalah luas komponen (jumlah total piksel tangan terpilih).
+- $x_i$ dan $y_i$ adalah koordinat sumbu X dan Y dari masing-masing piksel penyusun tangan tersebut.
+
+Hasil pasangan $(\bar{x}, \bar{y})$ ini merupakan titik tengah geometris dari telapak tangan pemain pada ruang resolusi citra pemrosesan.
+
+---
+
+### 7. Pemetaan Skala Koordinat dan Peredaman Gerakan (Smoothing)
+
+#### A. Pemetaan Koordinat ke Layar Game
+Titik pusat $(\bar{x}, \bar{y})$ yang diperoleh masih berada pada skala resolusi pemrosesan ($160 \times 120$). Titik ini dipetakan ke resolusi layar permainan ($800 \times 600$):
+
+$$X_{\text{layar}} = \frac{\bar{x}}{W_{\text{proses}}} \times W_{\text{layar}} = \frac{\bar{x}}{160} \times 800$$
+
+$$Y_{\text{layar}} = \frac{\bar{y}}{H_{\text{proses}}} \times H_{\text{layar}} = \frac{\bar{y}}{120} \times 600$$
+
+Koordinat dibatasi (*clamping*) agar posisi pedang selalu berada di dalam batas tampilan layar.
+
+#### B. Peredaman Getaran (Exponential Moving Average / EMA)
+Gerakan tangan manusia dan fluktuasi pencahayaan antarfram dapat menimbulkan getaran kecil (*jitter*). Untuk menghasilkan gerakan pedang yang halus, diterapkan interpolasi eksponensial:
+
+$$P_{\text{tampil}} = \alpha \cdot P_{\text{baru}} + (1 - \alpha) \cdot P_{\text{sebelumnya}}$$
+
+di mana koefisien $\alpha = 0.35$. Nilai ini memberikan keseimbangan optimal antara respon gerakan yang cepat dan stabilitas pedang yang tenang.
+
+#### C. Penanganan Kehilangan Tangan (Timeout)
+Jika pemain menarik tangannya keluar dari jangkauan kamera:
+- Sistem tidak memindahkan pedang secara acak ke pojok layar, melainkan menahan posisi valid terakhir.
+- Timer kehilangan tangan dihitung. Jika tangan tidak terdeteksi lebih dari 0,6 detik, bilah pedang dinonaktifkan (ditampilkan pudar) dan tabrakan dinonaktifkan agar tidak terjadi penangkisan pasif secara tidak disengaja.
+
+---
+
+## Mekanisme Permainan dan Aturan Skor
+
+Tujuan utama pemain adalah mempertahankan benteng dari serangan meteor dan api selama mungkin serta mengumpulkan skor setinggi-tingginya.
+
+### Sistem HP (Health Points)
+- Pemain memiliki 6 HP pada awal permainan.
+- HP ditampilkan melalui bilah visual kotak di panel atas layar (HUD).
+- Jika HP habis mencapai 0, benteng pertahanan dinyatakan runtuh dan permainan memasuki layar Game Over.
+
+### Aturan Tangkisan dan Konsekuensi
+Tangkisan terjadi murni berdasarkan perpotongan kotak pembatas (*bounding box collision*) antara bilah pedang dan objek yang sedang jatuh:
+
+| Objek | Karakteristik | Efek Saat Tertangkis Pedang | Efek Saat Lolos ke Batas Bawah |
+| :--- | :--- | :--- | :--- |
+| **Meteor** | Berupa bongkahan batu angkasa | Skor bertambah 1, HP tidak berkurang, memutar efek suara meteor | Mengurangi 1 HP pemain |
+| **Api** | Berupa bola api menyala | Skor bertambah 2, HP tidak berkurang, memutar efek suara api | Mengurangi 2 HP pemain |
+
+Setiap objek jatuh hanya diproses tepat satu kali: objek yang sudah ditangkis langsung dihancurkan dan tidak dapat menimbulkan kerusakan pada frame berikutnya.
+
+---
+
+## Tingkat Kesulitan (Difficulty Modes)
+
+Tingkat kesulitan dapat dipilih langsung dari Menu Utama sebelum menekan tombol PLAY:
+
+- **EASY**: Interval kemunculan objek relatif longgar (~1,5 detik) dengan kecepatan jatuh lambat dan peluang kemunculan api 20%.
+- **MEDIUM**: Interval kemunculan objek sedang (~1,0 detik) dengan kecepatan jatuh menengah dan peluang kemunculan api 30%.
+- **HARD**: Interval kemunculan objek sangat rapat (~0,6 detik) dengan kecepatan jatuh tinggi dan peluang kemunculan api 35%.
+
+Tingkat kesulitan bersifat tetap selama satu sesi permainan dan tidak dinaikkan secara otomatis berdasarkan perolehan skor.
+
+---
+
+## Navigasi Menu dan Tampilan Game
+
+1. **PLAY**: Memulai sesi permainan dengan tingkat kesulitan yang dipilih. Kamera yang telah aktif langsung digunakan tanpa jeda inisialisasi ulang.
+2. **DEMONSTRATION (PCV)**: Membuka panel diagnostik realtime yang menampilkan 5 tahapan pemrosesan kamera secara langsung:
+   - Panel 1: Kamera Asli (RGB Mirrored)
+   - Panel 2: Mask Thresholding HSV Kulit
+   - Panel 3: Hasil Morfologi Opening
+   - Panel 4: Hasil Morfologi Closing
+   - Panel 5: Hasil DFS Connected Component dan Titik Pusat Tangan (Centroid)
+   - Panel 6: Telemetri data realtime (Status deteksi, koordinat layar, luas piksel komponen, ambang HSV, dan FPS).
+3. **MODE (EASY / MEDIUM / HARD)**: Mengganti mode permainan yang akan digunakan saat menekan PLAY.
+4. **EXIT**: Menutup aplikasi serta melepaskan resource kamera, audio, dan jendela secara bersih.
+5. **GAME OVER**: Menampilkan skor akhir yang dicapai, tombol PLAY AGAIN untuk mengulang seketika dengan mode yang sama, dan tombol MAIN MENU untuk kembali ke menu awal.
+
+---
+
+## Kontrol Permainan
+
+- **Gerakan Tangan (Webcam)**: Mengendalikan posisi pedang ke segala arah untuk menangkis meteor dan api.
+- **Klik Kiri Mouse**: Menavigasi tombol antarmuka pada Menu Utama dan Layar Game Over.
+- **Tombol Keyboard ESC**: Kembali ke Menu Utama saat berada di layar gameplay atau demonstrasi PCV.
+
+---
+
+## Struktur Direktori Project
 
 ```text
 SwordDefender/
-├── main.py              # Titik masuk utama program dan siklus tampilan game
-├── README.md            # Dokumentasi lengkap mekanisme dan panduan game
-├── assets/              # Aset visual (sprite, latar belakang) dan audio (musik, efek suara)
+├── .gitignore           # Konfigurasi pengabaian file Git
+├── main.py              # Entry point utama program dan pengelolaan alur layar
+├── README.md            # Dokumentasi lengkap mekanisme dan metode PCV
+├── assets/              # Berkas media gambar dan suara
 │   ├── pedang.png
 │   ├── meteor.png
 │   ├── api.png
@@ -120,24 +283,24 @@ SwordDefender/
 │   ├── music_result.mp3
 │   ├── sound_meteor_hit.mp3
 │   └── sound_fire_hit.mp3
-└── src/                 # Modul pemrosesan logika game dan pengolahan citra
+└── src/                 # Modul logika game dan pengolahan citra
     ├── __init__.py
-    ├── pcv.py           # Pemrosesan kamera dan pelacakan tangan
-    ├── game.py          # Logika entitas jatuh, pedang, skor, dan benturan
-    └── assets.py        # Pengelola pemuatan gambar dan efek suara
+    ├── pcv.py           # Pipeline PCV, segmentasi HSV, morfologi manual, dan DFS
+    ├── game.py          # Logika entitas objek jatuh, pedang, dan collision
+    └── assets.py        # Pengelola pemuatan aset gambar dan audio dengan caching
 ```
 
 ---
 
-## 🚀 Cara Menjalankan Game
+## Panduan Instalasi dan Menjalankan Game
 
-1. Pastikan komputer terhubung dengan webcam aktif dan memiliki Python (versi 3.9 ke atas).
-2. Install library yang dibutuhkan:
+1. Pastikan perangkat terhubung dengan webcam fungsional dan memiliki Python versi 3.9 ke atas.
+2. Pasang pustaka dependensi yang dibutuhkan:
    ```bash
    pip install opencv-python numpy pygame
    ```
-3. Jalankan game:
+3. Jalankan aplikasi melalui terminal:
    ```bash
    python main.py
    ```
-4. Pastikan pencahayaan ruangan Anda cukup terang agar kamera dapat mendeteksi gerakan tangan dengan optimal. Selamat bermain!
+4. Pastikan pencahayaan ruangan cukup terang dan merata untuk hasil pelacakan tangan yang maksimal.
