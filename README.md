@@ -12,7 +12,7 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 <!-- SLOT GAMBAR SCREENSHOT: Letakkan file tangkapan layar game pada folder docs/screenshot.png -->
 ![Screenshot Gameplay Sword Defender](docs/screenshot.png)
 
-> *Catatan: Letakkan file tangkapan layar game pada folder `docs/screenshot.png` atau unggah langsung gambar tangkapan layar ke repository ini.*
+
 
 ---
 
@@ -22,7 +22,7 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 [Tonton atau Unduh File Video Gameplay](docs/gameplay.mp4)
 
-> *Catatan: Letakkan file rekaman video permainan pada folder `docs/gameplay.mp4` atau unggah langsung file video MP4 ke repository ini.*
+
 
 ---
 
@@ -30,48 +30,20 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 Bagian ini menjelaskan secara rinci seluruh tahapan matematis dan algoritma pemrosesan citra digital yang digunakan, mulai dari penerimaan sinyal visual mentah dari webcam hingga menghasilkan koordinat titik pusat tangan (centroid) untuk menggerakkan pedang.
 
-```
-+-----------------------------------------------------------------------+
-| 1. Akuisisi Frame Kamera (Format BGR)                                |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 2. Pembalikan Horizontal Citra (Horizontal Mirroring)                 |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 3. Konversi Ruang Warna dari BGR ke HSV                               |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 4. Segmentasi Warna Kulit (Dual-Range HSV Thresholding)               |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 5. Operasi Morfologi Manual NumPy (Opening & Closing 3x3)             |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 6. Analisis Komponen Terhubung DFS 4-Arah (Connected Components)      |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 7. Perhitungan Centroid (Pusat Massa) & Penapisan Area                |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-+-----------------------------------------------------------------------+
-| 8. Pemetaan Skala Koordinat & Peredaman Getaran (Smoothing EMA)       |
-+-----------------------------------------------------------------------+
-                                  |
-                                  v
-                        [ Koordinat Pedang ]
+```mermaid
+graph TD
+    A[1. Akuisisi Frame Kamera BGR] --> B[2. Pembalikan Horizontal Citra Mirroring]
+    B --> C[3. Konversi Ruang Warna BGR ke HSV]
+    C --> D[4. Segmentasi Warna Kulit Dual-Range HSV Thresholding]
+    D --> E[5. Operasi Morfologi Manual NumPy Opening & Closing 3x3]
+    E --> F[6. Analisis Komponen Terhubung DFS 4-Arah]
+    F --> G[7. Perhitungan Centroid & Penapisan Area]
+    G --> H[8. Pemetaan Skala Koordinat & Peredaman Getaran Smoothing EMA]
+    H --> I([Koordinat Pedang])
+
+    %% Kustomisasi Gaya Visual Diagram
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style I fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 ---
