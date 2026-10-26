@@ -20,7 +20,8 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 Lihat gameplay dalam aksi:
 
-[▶ Tonton Video Gameplay](docs/gameplay.mp4)
+https://github.com/user-attachments/assets/21726801-e836-47cd-9655-e0c16817d613
+
 
 
 ---
