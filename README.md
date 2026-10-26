@@ -18,7 +18,7 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 ###  Video Dokumentasi Gameplay
 
-<video src="https://githubusercontent.com" controls width="100%"></video>
+https://github.com/kenny1324/Kenny-Gabriel-Manurung/issues/1#issue-6043105499
 
 ---
  *Jika video tidak muncul, Anda tetap bisa [Unduh File Video Gameplay](docs/gameplay.mp4).*
