@@ -16,13 +16,11 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 ---
 
-###  Video Dokumentasi Gameplay
+### Video Dokumentasi Gameplay
 
 Lihat gameplay dalam aksi:
 
-<video src="./gameplay.mp4" controls width="800"></video>
-
----
+[▶ Tonton Video Gameplay](docs/gameplay.mp4)
 
 
 ---
