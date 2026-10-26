@@ -18,14 +18,11 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 ###  Video Dokumentasi Gameplay
 
-Dokumentasi rekaman *gameplay* tersedia dalam format `.mp4`. Karena batasan ukuran file pratinjau di GitHub, silakan unduh atau tonton langsung file video melalui tautan di bawah ini:
+Lihat gameplay dalam aksi:
 
-**[Unduh / Tonton File Video Gameplay](docs/gameplay.mp4)**
+<video src="./gameplay.mp4" controls width="800"></video>
 
 ---
-
-
-
 
 
 ---
