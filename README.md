@@ -16,11 +16,13 @@ Pemain mengendalikan bilah pedang di layar permainan. Dengan menggerakkan tangan
 
 ---
 
-### Video Dokumentasi Gameplay
-<!-- SLOT VIDEO DOKUMENTASI: Letakkan file rekaman gameplay pada folder docs/gameplay.mp4 -->
-<video src="docs/gameplay.mp4" controls="controls" width="100%"></video>
+###  Video Dokumentasi Gameplay
 
-[Tonton atau Unduh File Video Gameplay](docs/gameplay.mp4)
+<video src="https://githubusercontent.com" controls width="100%"></video>
+
+---
+ *Jika video tidak muncul, Anda tetap bisa [Unduh File Video Gameplay](docs/gameplay.mp4).*
+
 
 
 
